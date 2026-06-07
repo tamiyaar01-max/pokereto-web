@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PokeReto — 令和版ポケベル</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  :root {
+    --bg-top: #e0d1fa;
+    --bg-bot: #b8a6eb;
+    --edge: #7351ad;
+    --lcd-bg: #0f290f;
+    --lcd-green: #2e6b33;
+    --lcd-text: #a6ff9a;
+    --btn-bg: #c4b0e8;
+    --btn-shadow: #9070cc;
+    --send-btn: #7351ad;
+    --clr-btn: #f5e6c8;
+    --del-btn: #f0b8b8;
+  }
+
+  body {
+    min-height: 100vh;
+    background: linear-gradient(160deg, var(--bg-top), var(--bg-bot));
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px 0 40px;
+  }
+
+  .device {
+    width: 100%;
+    max-width: 400px;
+    padding: 0 16px;
+  }
+
+  /* ヘッダー */
+  .header {
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 4px;
+    color: var(--edge);
+    padding: 16px 0 12px;
+  }
+
+  /* タブバー */
+  .tabbar {
+    display: flex;
+    background: rgba(255,255,255,0.3);
+    border-radius: 16px;
+    padding: 4px;
+    margin-bottom: 12px;
+    gap: 2px;
+  }
+  .tab {
+    flex: 1;
+    padding: 8px 4px;
+    text-align: center;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--edge);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    background: transparent;
+    font-family: 'Courier New', monospace;
+  }
+  .tab.active {
+    background: var(--edge);
+    color: white;
+  }
+  .tab-icon { font-size: 14px; display: block; margin-bottom: 2px; }
+
+  /* ページ */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* === TALK === */
+  .lcd-wrap {
+    background: #0a1a0a;
+    border-radius: 14px;
+    padding: 8px;
+    margin-bottom: 12px;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .lcd {
+    background: var(--lcd-green);
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 120px;
+    position: relative;
+    overflow: hidden;
+  }
+  .lcd::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
+    pointer-events: none;
+  }
+  .lcd-display {
+    font-family: 'Courier New', monospace;
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--lcd-text);
+    text-shadow: 0 0 8px rgba(166,255,154,0.8);
+    letter-spacing: 4px;
+    min-height: 40px;
+    word-break: break-all;
+  }
+  .lcd-hint {
+    font-size: 10px;
+    color: var(--lcd-text);
+    opacity: 0.6;
+    margin-top: 8px;
+    letter-spacing: 1px;
+  }
+  .lcd-decoded {
+    font-size: 14px;
+    color: var(--lcd-text);
+    opacity: 0.9;
+    margin-top: 4px;
+    font-family: sans-serif;
+  }
+
+  /* コントロールバー */
+  .control-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .ctrl-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.1s;
+    box-shadow: 0 3px 0 var(--btn-shadow);
+  }
+  .ctrl-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--btn-shadow); }
+  .btn-clr { background: var(--clr-btn); color: #8a6a3a; }
+  .btn-send { background: var(--send-btn); color: white; }
+  .btn-del { background: var(--del-btn); color: #8a3a3a; }
+
+  /* キーパッド */
+  .keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .key {
+    aspect-ratio: 1.2;
+    border-radius: 12px;
+    border: none;
+    background: var(--btn-bg);
+    color: var(--edge);
+    font-family: 'Courier New', monospace;
+    cursor: pointer;
+    transition: all 0.1s;
+    box-shadow: 0 3px 0 var(--btn-shadow);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .key:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--btn-shadow); }
+  .key-num { font-size: 22px; font-weight: bold; }
+  .key-sub { font-size: 8px; color: var(--edge); opacity: 0.7; letter-spacing: 1px; }
+
+  /* 送信先 */
+  .target-bar {
+    background: rgba(255,255,255,0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    border: 1px solid rgba(115,81,173,0.2);
+  }
+  .target-label { font-size: 11px; font-weight: bold; color: var(--edge); letter-spacing: 1px; flex: 1; }
+  .target-arrow { color: var(--edge); opacity: 0.5; }
+
+  /* ステータスバー */
+  .status-bar {
+    background: rgba(255,255,255,0.25);
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(115,81,173,0.15);
+    margin-bottom: 8px;
+  }
+  .status-led {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #d93a3a;
+    box-shadow: 0 0 6px #d93a3a;
+    transition: all 0.3s;
+  }
+  .status-led.online { background: #33d95a; box-shadow: 0 0 6px #33d95a; }
+  .status-led.linking { background: #f2c41a; box-shadow: 0 0 6px #f2c41a; }
+  .status-text { font-size: 10px; font-weight: bold; color: var(--edge); letter-spacing: 1.5px; }
+  .status-divider { width: 1px; height: 12px; background: rgba(115,81,173,0.3); }
+  .status-id { font-size: 10px; color: var(--edge); letter-spacing: 0.5px; }
+
+  /* 着信バナー */
+  .incoming-banner {
+    display: none;
+    background: #0f380f;
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(50,180,80,0.3);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  .incoming-banner.show { display: flex; align-items: center; gap: 12px; }
+  .incoming-icon { font-size: 24px; animation: pulse 0.45s infinite alternate; }
+  @keyframes pulse { to { opacity: 0.4; } }
+  .incoming-info { flex: 1; }
+  .incoming-label { font-size: 9px; color: var(--lcd-text); opacity: 0.8; letter-spacing: 2px; }
+  .incoming-sender { font-size: 11px; color: var(--lcd-text); opacity: 0.7; }
+  .incoming-code { font-size: 28px; font-weight: bold; color: var(--lcd-text); letter-spacing: 4px; text-shadow: 0 0 8px rgba(166,255,154,0.8); }
+  .incoming-ok {
+    background: rgba(166,255,154,0.2);
+    border: 1px solid rgba(166,255,154,0.4);
+    color: var(--lcd-text);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  /* === DIALS === */
+  .section-title {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--edge);
+    margin: 16px 0 8px;
+    opacity: 0.7;
+  }
+  .qr-card {
+    background: white;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  #qr-canvas { margin: 0 auto 12px; display: block; }
+  .my-nickname { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 4px; }
+  .my-bellid-label { font-size: 9px; color: #999; letter-spacing: 3px; margin-bottom: 4px; }
+  .my-bellid { font-size: 13px; font-weight: bold; color: #333; font-family: 'Courier New', monospace; }
+
+  .contact-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .contact-row {
+    background: rgba(255,255,255,0.6);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .contact-avatar {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8c66d9, #6b4fb0);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 14px; font-weight: bold;
+    font-family: 'Courier New', monospace;
+    flex-shrink: 0;
+  }
+  .contact-info { flex: 1; }
+  .contact-name { font-size: 14px; font-weight: bold; color: #333; }
+  .contact-id { font-size: 11px; color: #999; font-family: 'Courier New', monospace; }
+  .contact-del { background: none; border: none; color: #d93a3a; cursor: pointer; font-size: 18px; padding: 4px; }
+
+  .add-contact-form {
+    background: rgba(255,255,255,0.5);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .form-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .form-input {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(115,81,173,0.3);
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    background: white;
+    color: #333;
+  }
+  .form-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: var(--send-btn);
+    color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  /* === GROUPS === */
+  .group-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  .group-row {
+    background: rgba(255,255,255,0.6);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .group-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .group-info { flex: 1; }
+  .group-name { font-size: 14px; font-weight: bold; color: #333; }
+  .group-members { font-size: 11px; color: #999; }
+  .group-del { background: none; border: none; color: #d93a3a; cursor: pointer; font-size: 18px; padding: 4px; }
+
+  .group-form {
+    background: rgba(255,255,255,0.5);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .group-form input { width: 100%; margin-bottom: 8px; }
+  .color-picker { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .color-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+  }
+  .color-dot.selected { border-color: #333; transform: scale(1.15); }
+  .member-check-list { margin-bottom: 8px; }
+  .member-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  .member-check input { width: 16px; height: 16px; accent-color: var(--send-btn); }
+
+  /* === LOG === */
+  .log-filter {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .log-filter-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.3);
+    color: var(--edge);
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .log-filter-btn.active { background: var(--edge); color: white; }
+  .log-list { display: flex; flex-direction: column; gap: 8px; }
+  .log-row {
+    background: rgba(255,255,255,0.5);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .log-icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .log-icon.sent { background: rgba(115,81,173,0.15); color: var(--edge); }
+  .log-icon.recv { background: rgba(50,180,80,0.15); color: #2a8a40; }
+  .log-content { flex: 1; }
+  .log-meta { font-size: 10px; color: #999; letter-spacing: 0.5px; margin-bottom: 3px; display: flex; justify-content: space-between; }
+  .log-code { font-size: 20px; font-weight: bold; color: #333; letter-spacing: 2px; font-family: 'Courier New', monospace; }
+  .log-decoded { font-size: 12px; color: var(--edge); margin-top: 2px; }
+  .log-status { font-size: 9px; color: #999; margin-top: 2px; font-weight: bold; }
+
+  .pending-banner {
+    background: linear-gradient(90deg, #f5a623, #f08010);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    display: none;
+  }
+  .pending-banner.show { display: block; }
+
+  /* === DICT === */
+  .dict-search {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(115,81,173,0.3);
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    background: rgba(255,255,255,0.7);
+    color: #333;
+    margin-bottom: 10px;
+  }
+  .dict-cat {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .dict-cat-btn {
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: none;
+    background: rgba(255,255,255,0.4);
+    color: var(--edge);
+    font-family: 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .dict-cat-btn.active { background: var(--edge); color: white; }
+  .dict-list { display: flex; flex-direction: column; gap: 1px; }
+  .dict-row {
+    background: rgba(255,255,255,0.5);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .dict-row:first-child { border-radius: 10px 10px 0 0; }
+  .dict-row:last-child { border-radius: 0 0 10px 10px; }
+  .dict-row:only-child { border-radius: 10px; }
+  .dict-code { font-size: 18px; font-weight: bold; color: #2a8a40; font-family: 'Courier New', monospace; letter-spacing: 2px; min-width: 80px; }
+  .dict-divider { width: 1px; height: 24px; background: rgba(115,81,173,0.2); }
+  .dict-meaning { font-size: 15px; color: #333; flex: 1; }
+  .dict-badge {
+    font-size: 9px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+  }
+  .badge-retro { background: rgba(245,150,50,0.15); color: #d47a10; }
+  .badge-zgen { background: rgba(50,100,245,0.15); color: #2050c0; }
+  .badge-goro { background: rgba(50,180,80,0.15); color: #2a8a40; }
+
+  /* === SETTINGS === */
+  .settings-section {
+    background: rgba(255,255,255,0.5);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(115,81,173,0.1);
+    gap: 10px;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-label { flex: 1; font-size: 13px; color: #333; }
+  .settings-input {
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(115,81,173,0.3);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background: white;
+    color: #333;
+    width: 160px;
+  }
+  .settings-toggle {
+    width: 44px; height: 24px;
+    border-radius: 12px;
+    background: #ccc;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: none;
+    flex-shrink: 0;
+  }
+  .settings-toggle.on { background: var(--send-btn); }
+  .settings-toggle::after {
+    content: '';
+    position: absolute;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: white;
+    top: 2px; left: 2px;
+    transition: all 0.3s;
+  }
+  .settings-toggle.on::after { left: 22px; }
+  .settings-save-btn {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: var(--send-btn);
+    color: white;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    cursor: pointer;
+    margin-bottom: 8px;
+  }
+  .reset-btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    background: rgba(217,58,58,0.1);
+    color: #d93a3a;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  /* ターゲット選択シート */
+  .sheet-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    align-items: flex-end;
+  }
+  .sheet-overlay.show { display: flex; }
+  .sheet {
+    background: #f5f0ff;
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 16px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .sheet-title { font-size: 13px; font-weight: bold; color: var(--edge); letter-spacing: 2px; margin-bottom: 12px; text-align: center; }
+  .sheet-section { font-size: 10px; color: #999; letter-spacing: 2px; margin: 10px 0 6px; }
+  .sheet-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .sheet-row:hover, .sheet-row.selected { background: rgba(115,81,173,0.1); }
+  .sheet-icon {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .sheet-info { flex: 1; }
+  .sheet-name { font-size: 14px; font-weight: bold; color: #333; font-family: 'Courier New', monospace; }
+  .sheet-sub { font-size: 11px; color: #999; }
+  .sheet-check { color: var(--send-btn); font-size: 20px; }
+  .sheet-close {
+    width: 100%;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    background: rgba(115,81,173,0.1);
+    color: var(--edge);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: #999;
+    font-size: 13px;
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="device">
+  <div class="header">POKE-RETO  ●  MODEL RW-01</div>
+
+  <!-- タブバー -->
+  <div class="tabbar">
+    <button class="tab active" onclick="switchTab('talk')">
+      <span class="tab-icon">📡</span>TALK
+    </button>
+    <button class="tab" onclick="switchTab('dials')">
+      <span class="tab-icon">👥</span>DIALS
+    </button>
+    <button class="tab" onclick="switchTab('groups')">
+      <span class="tab-icon">👫</span>GROUPS
+    </button>
+    <button class="tab" onclick="switchTab('log')">
+      <span class="tab-icon">📋</span>LOG
+    </button>
+    <button class="tab" onclick="switchTab('dict')">
+      <span class="tab-icon">📖</span>DICT
+    </button>
+    <button class="tab" onclick="switchTab('settings')">
+      <span class="tab-icon">⚙️</span>SET
+    </button>
+  </div>
+
+  <!-- TALK -->
+  <div class="page active" id="page-talk">
+    <!-- 着信バナー -->
+    <div class="incoming-banner" id="incoming-banner">
+      <span class="incoming-icon">📡</span>
+      <div class="incoming-info">
+        <div class="incoming-label">INCOMING BELL</div>
+        <div class="incoming-sender" id="incoming-sender"></div>
+        <div class="incoming-code" id="incoming-code"></div>
+      </div>
+      <button class="incoming-ok" onclick="dismissIncoming()">OK</button>
+    </div>
+
+    <!-- LCD -->
+    <div class="lcd-wrap">
+      <div class="lcd">
+        <div class="lcd-display" id="lcd-display"></div>
+        <div class="lcd-decoded" id="lcd-decoded"></div>
+        <div class="lcd-hint" id="lcd-hint">▼ 数字を入力してください</div>
+      </div>
+    </div>
+
+    <!-- コントロール -->
+    <div class="control-bar">
+      <button class="ctrl-btn btn-clr" onclick="clearInput()">CLR</button>
+      <button class="ctrl-btn btn-send" onclick="sendMessage()">SEND ▶</button>
+      <button class="ctrl-btn btn-del" onclick="deleteKey()">◀ DEL</button>
+    </div>
+
+    <!-- キーパッド -->
+    <div class="keypad">
+      <button class="key" onclick="pressKey('1')"><span class="key-num">1</span></button>
+      <button class="key" onclick="pressKey('2')"><span class="key-num">2</span><span class="key-sub">ABC</span></button>
+      <button class="key" onclick="pressKey('3')"><span class="key-num">3</span><span class="key-sub">DEF</span></button>
+      <button class="key" onclick="pressKey('4')"><span class="key-num">4</span><span class="key-sub">GHI</span></button>
+      <button class="key" onclick="pressKey('5')"><span class="key-num">5</span><span class="key-sub">JKL</span></button>
+      <button class="key" onclick="pressKey('6')"><span class="key-num">6</span><span class="key-sub">MNO</span></button>
+      <button class="key" onclick="pressKey('7')"><span class="key-num">7</span><span class="key-sub">PQRS</span></button>
+      <button class="key" onclick="pressKey('8')"><span class="key-num">8</span><span class="key-sub">TUV</span></button>
+      <button class="key" onclick="pressKey('9')"><span class="key-num">9</span><span class="key-sub">WXYZ</span></button>
+      <button class="key" onclick="pressKey('*')"><span class="key-num">✱</span></button>
+      <button class="key" onclick="pressKey('0')"><span class="key-num">0</span><span class="key-sub">+</span></button>
+      <button class="key" onclick="pressKey('#')"><span class="key-num">#</span></button>
+    </div>
+
+    <!-- 送信先 -->
+    <div class="target-bar" onclick="showTargetSheet()">
+      <span>📡</span>
+      <span class="target-label" id="target-label">TO: 全員</span>
+      <span class="target-arrow">⌃⌄</span>
+    </div>
+
+    <!-- ステータス -->
+    <div class="status-bar">
+      <div class="status-led" id="status-led"></div>
+      <span class="status-text" id="status-text">OFFLINE</span>
+      <div class="status-divider"></div>
+      <span class="status-id" id="status-id"></span>
+    </div>
+  </div>
+
+  <!-- DIALS -->
+  <div class="page" id="page-dials">
+    <div class="section-title">MY BELL-ID</div>
+    <div class="qr-card">
+      <canvas id="qr-canvas" width="160" height="160"></canvas>
+      <div class="my-nickname" id="my-nickname-display"></div>
+      <div class="my-bellid-label">YOUR BELL-ID</div>
+      <div class="my-bellid" id="my-bellid-display"></div>
+    </div>
+
+    <div class="section-title">CONTACTS (<span id="contact-count">0</span>)</div>
+    <div class="contact-list" id="contact-list"></div>
+
+    <div class="section-title">ADD CONTACT</div>
+    <div class="add-contact-form">
+      <div class="form-row">
+        <input class="form-input" id="add-nickname" placeholder="ニックネーム" />
+      </div>
+      <div class="form-row">
+        <input class="form-input" id="add-bellid" placeholder="090-RW01-XXXX" />
+        <button class="form-btn" onclick="addContact()">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GROUPS -->
+  <div class="page" id="page-groups">
+    <div class="section-title">GROUPS</div>
+    <div class="group-list" id="group-list"></div>
+
+    <div class="section-title">NEW GROUP</div>
+    <div class="group-form">
+      <input class="form-input" id="group-name-input" placeholder="グループ名" style="width:100%;margin-bottom:8px;" />
+      <div style="font-size:10px;color:#999;margin-bottom:6px;letter-spacing:1px;">COLOR</div>
+      <div class="color-picker" id="color-picker">
+        <div class="color-dot selected" style="background:#8E7CFF" data-color="#8E7CFF" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#FF6B6B" data-color="#FF6B6B" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#4ECDC4" data-color="#4ECDC4" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#FFD93D" data-color="#FFD93D" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#6BCB77" data-color="#6BCB77" onclick="selectColor(this)"></div>
+        <div class="color-dot" style="background:#FF9F45" data-color="#FF9F45" onclick="selectColor(this)"></div>
+      </div>
+      <div style="font-size:10px;color:#999;margin-bottom:6px;letter-spacing:1px;">MEMBERS</div>
+      <div class="member-check-list" id="member-check-list"></div>
+      <button class="form-btn" style="width:100%" onclick="addGroup()">グループ作成</button>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="page" id="page-log">
+    <div class="pending-banner" id="pending-banner"></div>
+    <div class="log-filter">
+      <button class="log-filter-btn active" onclick="setLogFilter('all', this)">ALL</button>
+      <button class="log-filter-btn" onclick="setLogFilter('sent', this)">SENT</button>
+      <button class="log-filter-btn" onclick="setLogFilter('recv', this)">RECV</button>
+    </div>
+    <div class="log-list" id="log-list"></div>
+  </div>
+
+  <!-- DICT -->
+  <div class="page" id="page-dict">
+    <input class="dict-search" id="dict-search" placeholder="コード / 日本語で検索" oninput="renderDict()" />
+    <div class="dict-cat">
+      <button class="dict-cat-btn active" onclick="setDictCat('all', this)">ALL</button>
+      <button class="dict-cat-btn" onclick="setDictCat('retro', this)">レトロ</button>
+      <button class="dict-cat-btn" onclick="setDictCat('zgen', this)">Z世代</button>
+      <button class="dict-cat-btn" onclick="setDictCat('goro', this)">語呂</button>
+    </div>
+    <div class="dict-list" id="dict-list"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="page" id="page-settings">
+    <div class="section-title">MY PROFILE</div>
+    <div class="settings-section">
+      <div class="settings-row">
+        <span class="settings-label">ニックネーム</span>
+        <input class="settings-input" id="s-nickname" placeholder="OCEAN" />
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">ベル番号</span>
+        <input class="settings-input" id="s-bellid" placeholder="090-RW01-XXXX" readonly style="background:#f5f5f5" />
+      </div>
+    </div>
+    <div class="section-title">SERVER</div>
+    <div class="settings-section">
+      <div class="settings-row">
+        <span class="settings-label">サーバーURL</span>
+        <input class="settings-input" id="s-serverurl" placeholder="wss://..." />
+      </div>
+    </div>
+    <div class="section-title">SOUND</div>
+    <div class="settings-section">
+      <div class="settings-row">
+        <span class="settings-label">着信音</span>
+        <button class="settings-toggle on" id="t-ringtone" onclick="toggleSetting('ringtone', this)"></button>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">バイブレーション</span>
+        <button class="settings-toggle on" id="t-vibration" onclick="toggleSetting('vibration', this)"></button>
+      </div>
+    </div>
+    <button class="settings-save-btn" onclick="saveSettings()">設定を保存</button>
+    <button class="reset-btn" onclick="resetAll()">全データをリセット</button>
+  </div>
+</div>
+
+<!-- ターゲット選択シート -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="hideTargetSheet(event)">
+  <div class="sheet">
+    <div class="sheet-title">送信先を選択</div>
+    <div class="sheet-section">BROADCAST</div>
+    <div class="sheet-row" id="target-all" onclick="selectTarget('all')">
+      <div class="sheet-icon" style="background:rgba(115,81,173,0.15)">📡</div>
+      <div class="sheet-info">
+        <div class="sheet-name">全員</div>
+        <div class="sheet-sub">接続中の全端末に送信</div>
+      </div>
+      <span class="sheet-check" id="check-all">✓</span>
+    </div>
+    <div id="sheet-groups-section"></div>
+    <div id="sheet-contacts-section"></div>
+    <button class="sheet-close" onclick="hideTargetSheet()">閉じる</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 暗号辞書
+// ============================================================
+const pokeDict = {
+  "084":"おはよう","0840":"おはよう（おはよ）","0833":"おやすみ",
+  "14106":"愛してる","114106":"あいしてる","1410":"愛してる",
+  "0510":"ドンマイ","3341":"さみしい","33414":"寂しいよ",
+  "4510":"仕事","04510":"お仕事","0930":"オークラ",
+  "5963":"ご苦労さん","810":"バイバイ","8181":"バイバイ",
+  "0106":"待ってる","01062":"待っている","0906":"遅れる",
+  "889":"はやく","8110":"バイト","8282":"はにゃ？",
+  "3150":"最高","10":"尊い","28":"ニキ","21":"ネキ",
+  "609":"りょ","450":"ヨゴシ","017":"令和","115":"イイコ",
+  "02":"オツ","53":"ゴミ","721":"ナニ？","13":"いざ",
+  "39":"サンキュー","999":"サンキュー","4649":"よろしく",
+  "11015":"届いたよ","0120":"フリーダイヤル","10105":"今どこ",
+  "0102":"止まって","064":"守るよ","15":"行こう","194":"行くよ",
+  "09":"OK","50":"ゴー","11014":"会いたいよ","105619":"今から行くよ",
+  "1052167":"どこにいるの？","1871":"会えない","21104":"着いたよ",
+  "3470":"さよなら","3614":"さむいよ","500731":"ごめんなさい",
+  "5110":"ファイト","724106":"何してる","860":"ハロー","9271":"グッナイ",
+  "101044":"デートしよ","598936":"告白する","101":"プロポーズ",
+  "49":"至急","49106":"至急TEL","09106":"起きてる","428":"渋谷",
+  "10690":"テルくれ","56886":"コンパやろー","753":"七五三",
+  "1090":"東京","315":"神田","4580":"秋葉原","043":"御徒町",
+  "470":"上野","5038":"鶯谷","251":"日暮里","24251":"西日暮里",
+  "480":"田端","505":"駒込","430":"巣鴨","024":"大塚","196":"池袋",
+  "346":"目白","988":"高田馬場","41094":"新大久保","4919":"新宿",
+  "449":"代々木","8419":"原宿","123":"恵比寿","396":"目黒",
+  "515":"五反田","039":"大崎","475":"品川","46091":"高輪ゲートウェイ",
+  "43":"田町","803":"浜松町","484":"新橋",
+  "189-360":"日焼けサロン","9393":"笑っちゃった","501":"ジーンズ",
+  "009":"カラオケ","339473":"鈴木保奈美","798034":"中山美穂",
+  "29800386":"福山雅治","8264091":"バブル崩壊"
+};
+
+const retroCodes = new Set(["084","0840","0833","14106","114106","1410","0510","3341","33414","4510","04510","0930","5963","810","8181","0106","01062","0906","889","8110"]);
+const zgenCodes  = new Set(["8282","3150","10","28","21","609","450","017","115","02","53","721"]);
+
+// ============================================================
+// 状態
+// ============================================================
+let myBellID   = localStorage.getItem('bellID') || '';
+let myNickname = localStorage.getItem('nickname') || '';
+let serverURL  = localStorage.getItem('serverURL') || 'wss://pokereto-server.onrender.com';
+let contacts   = JSON.parse(localStorage.getItem('contacts') || '[]');
+let groups     = JSON.parse(localStorage.getItem('groups') || '[]');
+let messages   = JSON.parse(localStorage.getItem('messages') || '[]');
+let ringtone   = localStorage.getItem('ringtone') !== 'false';
+let vibration  = localStorage.getItem('vibration') !== 'false';
+
+let inputBuffer  = '';
+let sendTarget   = { type: 'all' };
+let logFilter    = 'all';
+let dictCat      = 'all';
+let ws           = null;
+let wsState      = 'disconnected'; // disconnected / connecting / connected
+let audioCtx     = null;
+let incomingRing = null;
+let selectedGroupColor = '#8E7CFF';
+
+// ============================================================
+// 初期化
+// ============================================================
+function init() {
+  if (!myBellID) {
+    myBellID = '090-RW01-' + Math.floor(1000 + Math.random() * 9000);
+    localStorage.setItem('bellID', myBellID);
+  }
+  document.getElementById('status-id').textContent = '📡 ' + myBellID;
+  document.getElementById('s-bellid').value = myBellID;
+  document.getElementById('s-nickname').value = myNickname;
+  document.getElementById('s-serverurl').value = serverURL;
+  document.getElementById('t-ringtone').className = 'settings-toggle' + (ringtone ? ' on' : '');
+  document.getElementById('t-vibration').className = 'settings-toggle' + (vibration ? ' on' : '');
+
+  renderDict();
+  renderLog();
+  renderContacts();
+  renderGroups();
+  renderMemberChecks();
+  updateQR();
+  connectWS();
+}
+
+// ============================================================
+// WebSocket
+// ============================================================
+function connectWS() {
+  setStatus('connecting');
+  try {
+    ws = new WebSocket(serverURL);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ bellID: myBellID }));
+      setStatus('connected');
+    };
+    ws.onmessage = (e) => {
+      try {
+        const p = JSON.parse(e.data);
+        if (p.type === 'welcome') return;
+        if ((p.to === myBellID || p.to === '*') && p.from !== myBellID) {
+          receiveMessage(p);
+        }
+      } catch(err) {}
+    };
+    ws.onclose = () => {
+      setStatus('disconnected');
+      setTimeout(connectWS, 3000);
+    };
+    ws.onerror = () => {
+      setStatus('disconnected');
+    };
+  } catch(e) {
+    setStatus('disconnected');
+    setTimeout(connectWS, 3000);
+  }
+}
+
+function setStatus(s) {
+  wsState = s;
+  const led  = document.getElementById('status-led');
+  const text = document.getElementById('status-text');
+  led.className = 'status-led' + (s === 'connected' ? ' online' : s === 'connecting' ? ' linking' : '');
+  text.textContent = s === 'connected' ? 'ONLINE' : s === 'connecting' ? 'LINKING' : 'OFFLINE';
+}
+
+// ============================================================
+// キーパッド
+// ============================================================
+function pressKey(k) {
+  if (inputBuffer.length >= 20) return;
+  inputBuffer += k;
+  playDTMF(k);
+  updateLCD();
+}
+function deleteKey() {
+  inputBuffer = inputBuffer.slice(0, -1);
+  updateLCD();
+}
+function clearInput() {
+  inputBuffer = '';
+  updateLCD();
+}
+function updateLCD() {
+  document.getElementById('lcd-display').textContent = inputBuffer;
+  const dec = pokeDict[inputBuffer];
+  document.getElementById('lcd-decoded').textContent = dec ? dec : '';
+  document.getElementById('lcd-hint').textContent = inputBuffer === ''
+    ? '▼ 数字を入力してください'
+    : dec ? '▼ 「' + dec + '」' : '▼ 辞書にないコード';
+}
+
+// ============================================================
+// 送受信
+// ============================================================
+function sendMessage() {
+  if (!inputBuffer) return;
+  const code = inputBuffer;
+  const ts = Date.now() / 1000;
+  let to = '*';
+  let peerName = 'ALL';
+
+  if (sendTarget.type === 'contact') {
+    to = sendTarget.bellID;
+    peerName = sendTarget.nickname;
+  } else if (sendTarget.type === 'group') {
+    // グループメンバー全員に個別送信
+    const g = groups.find(x => x.id === sendTarget.groupID);
+    if (g) {
+      g.memberBellIDs.forEach(bid => {
+        if (ws && wsState === 'connected') {
+          ws.send(JSON.stringify({ from: myBellID, to: bid, code, ts }));
+        }
+      });
+      addMessage({ code, isSent: true, peerName: g.name, status: 'sent', ts });
+      clearInput();
+      renderLog();
+      return;
+    }
+  }
+
+  const packet = { from: myBellID, to, code, ts };
+  let status = 'pending';
+  if (ws && wsState === 'connected') {
+    ws.send(JSON.stringify(packet));
+    status = 'sent';
+  }
+  addMessage({ code, isSent: true, peerName, status, ts });
+  clearInput();
+  renderLog();
+  if (vibration && navigator.vibrate) navigator.vibrate(50);
+}
+
+function receiveMessage(p) {
+  const sender = contacts.find(c => c.bellID === p.from);
+  const peerName = sender ? sender.nickname : p.from;
+  addMessage({ code: p.code, isSent: false, peerName, status: 'recv', ts: p.ts || Date.now()/1000 });
+  renderLog();
+  showIncoming(p.code, peerName);
+  if (ringtone) playRingtone();
+  if (vibration && navigator.vibrate) navigator.vibrate([200,100,200]);
+}
+
+function addMessage(msg) {
+  messages.push(msg);
+  if (messages.length > 500) messages = messages.slice(-500);
+  localStorage.setItem('messages', JSON.stringify(messages));
+}
+
+// ============================================================
+// 着信
+// ============================================================
+function showIncoming(code, sender) {
+  document.getElementById('incoming-code').textContent = code;
+  document.getElementById('incoming-sender').textContent = sender;
+  document.getElementById('incoming-banner').className = 'incoming-banner show';
+}
+function dismissIncoming() {
+  document.getElementById('incoming-banner').className = 'incoming-banner';
+  if (incomingRing) { incomingRing.stop(); incomingRing = null; }
+}
+
+// ============================================================
+// 音
+// ============================================================
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTone(freq, dur, delay=0, vol=0.4) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = freq;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+    gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + delay + 0.01);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + delay + dur - 0.01);
+    osc.start(ctx.currentTime + delay);
+    osc.stop(ctx.currentTime + delay + dur);
+  } catch(e) {}
+}
+function playDTMF(k) {
+  const rowF = {'1':697,'2':697,'3':697,'4':770,'5':770,'6':770,'7':852,'8':852,'9':852,'*':941,'0':941,'#':941};
+  const colF = {'1':1209,'2':1336,'3':1477,'4':1209,'5':1336,'6':1477,'7':1209,'8':1336,'9':1477,'*':1209,'0':1336,'#':1477};
+  if (rowF[k]) { playTone(rowF[k], 0.1, 0, 0.2); playTone(colF[k], 0.1, 0, 0.2); }
+}
+function playRingtone() {
+  const notes = [[1046.5,0.12,0],[1318.5,0.12,0.13],[1568,0.12,0.26],[2093,0.2,0.39],[1568,0.1,0.62],[1318.5,0.1,0.74],[1046.5,0.25,0.86]];
+  notes.forEach(([f,d,t]) => playTone(f, d, t));
+}
+
+// ============================================================
+// ターゲット選択
+// ============================================================
+function showTargetSheet() {
+  const gs = document.getElementById('sheet-groups-section');
+  const cs = document.getElementById('sheet-contacts-section');
+  let gHtml = groups.length ? '<div class="sheet-section">GROUPS</div>' : '';
+  groups.forEach(g => {
+    const sel = sendTarget.type === 'group' && sendTarget.groupID === g.id;
+    gHtml += `<div class="sheet-row${sel?' selected':''}" onclick="selectTarget('group','${g.id}')">
+      <div class="sheet-icon" style="background:${g.color}33">👫</div>
+      <div class="sheet-info"><div class="sheet-name">${g.name}</div><div class="sheet-sub">${g.memberBellIDs.length}人</div></div>
+      ${sel ? '<span class="sheet-check">✓</span>' : ''}
+    </div>`;
+  });
+  let cHtml = contacts.length ? '<div class="sheet-section">INDIVIDUAL</div>' : '';
+  contacts.forEach(c => {
+    const sel = sendTarget.type === 'contact' && sendTarget.bellID === c.bellID;
+    cHtml += `<div class="sheet-row${sel?' selected':''}" onclick="selectTarget('contact','${c.bellID}','${c.nickname}')">
+      <div class="sheet-icon" style="background:rgba(115,81,173,0.15)">👤</div>
+      <div class="sheet-info"><div class="sheet-name">${c.nickname}</div><div class="sheet-sub">${c.bellID}</div></div>
+      ${sel ? '<span class="sheet-check">✓</span>' : ''}
+    </div>`;
+  });
+  gs.innerHTML = gHtml;
+  cs.innerHTML = cHtml;
+  document.getElementById('check-all').style.display = sendTarget.type === 'all' ? '' : 'none';
+  document.getElementById('sheet-overlay').className = 'sheet-overlay show';
+}
+function hideTargetSheet(e) {
+  if (!e || e.target === document.getElementById('sheet-overlay')) {
+    document.getElementById('sheet-overlay').className = 'sheet-overlay';
+  }
+}
+function selectTarget(type, id, name) {
+  if (type === 'all') {
+    sendTarget = { type: 'all' };
+    document.getElementById('target-label').textContent = 'TO: 全員';
+  } else if (type === 'group') {
+    const g = groups.find(x => x.id === id);
+    sendTarget = { type: 'group', groupID: id };
+    document.getElementById('target-label').textContent = 'TO: ' + (g ? g.name : id);
+  } else {
+    sendTarget = { type: 'contact', bellID: id, nickname: name };
+    document.getElementById('target-label').textContent = 'TO: ' + name;
+  }
+  document.getElementById('sheet-overlay').className = 'sheet-overlay';
+}
+
+// ============================================================
+// コンタクト
+// ============================================================
+function addContact() {
+  const nick = document.getElementById('add-nickname').value.trim();
+  const bid  = document.getElementById('add-bellid').value.trim();
+  if (!nick || !bid) return alert('ニックネームとベル番号を入力してください');
+  if (contacts.find(c => c.bellID === bid)) return alert('すでに登録済みです');
+  contacts.push({ bellID: bid, nickname: nick });
+  localStorage.setItem('contacts', JSON.stringify(contacts));
+  document.getElementById('add-nickname').value = '';
+  document.getElementById('add-bellid').value = '';
+  renderContacts();
+  renderMemberChecks();
+}
+function deleteContact(bid) {
+  contacts = contacts.filter(c => c.bellID !== bid);
+  localStorage.setItem('contacts', JSON.stringify(contacts));
+  renderContacts();
+  renderMemberChecks();
+}
+function renderContacts() {
+  document.getElementById('contact-count').textContent = contacts.length;
+  const el = document.getElementById('contact-list');
+  if (!contacts.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div>コンタクトがいません</div>'; return; }
+  el.innerHTML = contacts.map(c => `
+    <div class="contact-row">
+      <div class="contact-avatar">${c.nickname.slice(0,2).toUpperCase()}</div>
+      <div class="contact-info">
+        <div class="contact-name">${c.nickname}</div>
+        <div class="contact-id">${c.bellID}</div>
+      </div>
+      <button class="contact-del" onclick="deleteContact('${c.bellID}')">🗑</button>
+    </div>`).join('');
+}
+
+// ============================================================
+// グループ
+// ============================================================
+function selectColor(el) {
+  document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedGroupColor = el.dataset.color;
+}
+function renderMemberChecks() {
+  const el = document.getElementById('member-check-list');
+  if (!contacts.length) { el.innerHTML = '<div style="font-size:12px;color:#999;">先に仲間を追加してください</div>'; return; }
+  el.innerHTML = contacts.map(c => `
+    <label class="member-check">
+      <input type="checkbox" value="${c.bellID}" class="member-cb" />
+      <span>${c.nickname} <span style="color:#999;font-size:11px;">(${c.bellID})</span></span>
+    </label>`).join('');
+}
+function addGroup() {
+  const name = document.getElementById('group-name-input').value.trim();
+  if (!name) return alert('グループ名を入力してください');
+  const members = [...document.querySelectorAll('.member-cb:checked')].map(cb => cb.value);
+  groups.push({ id: Date.now().toString(), name, color: selectedGroupColor, memberBellIDs: members });
+  localStorage.setItem('groups', JSON.stringify(groups));
+  document.getElementById('group-name-input').value = '';
+  document.querySelectorAll('.member-cb').forEach(cb => cb.checked = false);
+  renderGroups();
+}
+function deleteGroup(id) {
+  groups = groups.filter(g => g.id !== id);
+  localStorage.setItem('groups', JSON.stringify(groups));
+  renderGroups();
+}
+function renderGroups() {
+  const el = document.getElementById('group-list');
+  if (!groups.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">👫</div>グループがありません</div>'; return; }
+  el.innerHTML = groups.map(g => `
+    <div class="group-row">
+      <div class="group-avatar" style="background:${g.color}33">👫</div>
+      <div class="group-info">
+        <div class="group-name">${g.name}</div>
+        <div class="group-members">${g.memberBellIDs.length}人のメンバー</div>
+      </div>
+      <button class="group-del" onclick="deleteGroup('${g.id}')">🗑</button>
+    </div>`).join('');
+}
+
+// ============================================================
+// LOG
+// ============================================================
+function setLogFilter(f, btn) {
+  logFilter = f;
+  document.querySelectorAll('.log-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLog();
+}
+function renderLog() {
+  const pending = messages.filter(m => m.isSent && m.status === 'pending');
+  const pb = document.getElementById('pending-banner');
+  if (pending.length) { pb.className = 'pending-banner show'; pb.textContent = `${pending.length}件のメッセージが送信待ちです`; }
+  else { pb.className = 'pending-banner'; }
+
+  let list = [...messages].reverse();
+  if (logFilter === 'sent') list = list.filter(m => m.isSent);
+  if (logFilter === 'recv') list = list.filter(m => !m.isSent);
+
+  const el = document.getElementById('log-list');
+  if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div>履歴がありません</div>'; return; }
+  el.innerHTML = list.map(m => {
+    const dec = pokeDict[m.code];
+    const dt  = new Date(m.ts * 1000);
+    const now = new Date();
+    const timeStr = dt.toDateString() === now.toDateString()
+      ? dt.toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'})
+      : dt.toLocaleDateString('ja-JP', {month:'numeric',day:'numeric'});
+    const metaStr = m.isSent ? `SENT → ${m.peerName}` : `FROM ← ${m.peerName}`;
+    const statusStr = m.isSent ? (m.status === 'pending' ? '🕐 送信待ち' : '✓ 送信済み') : '';
+    return `<div class="log-row">
+      <div class="log-icon ${m.isSent?'sent':'recv'}">${m.isSent?'📤':'📥'}</div>
+      <div class="log-content">
+        <div class="log-meta"><span>${metaStr}</span><span>${timeStr}</span></div>
+        <div class="log-code">${m.code}</div>
+        ${dec ? `<div class="log-decoded">${dec}</div>` : ''}
+        ${statusStr ? `<div class="log-status">${statusStr}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// DICT
+// ============================================================
+let currentDictCat = 'all';
+function setDictCat(cat, btn) {
+  currentDictCat = cat;
+  document.querySelectorAll('.dict-cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDict();
+}
+function renderDict() {
+  const q = document.getElementById('dict-search').value.toLowerCase();
+  let entries = Object.entries(pokeDict).sort((a,b) => a[0].length - b[0].length || a[0].localeCompare(b[0]));
+  if (currentDictCat === 'retro') entries = entries.filter(([k]) => retroCodes.has(k));
+  else if (currentDictCat === 'zgen') entries = entries.filter(([k]) => zgenCodes.has(k));
+  else if (currentDictCat === 'goro') entries = entries.filter(([k]) => !retroCodes.has(k) && !zgenCodes.has(k));
+  if (q) entries = entries.filter(([k,v]) => k.includes(q) || v.includes(q));
+  const el = document.getElementById('dict-list');
+  if (!entries.length) { el.innerHTML = '<div class="empty-state">見つかりません</div>'; return; }
+  el.innerHTML = entries.map(([k,v]) => {
+    const cat = retroCodes.has(k) ? 'retro' : zgenCodes.has(k) ? 'zgen' : 'goro';
+    const label = cat === 'retro' ? 'RETRO' : cat === 'zgen' ? 'Z世代' : '語呂';
+    return `<div class="dict-row">
+      <span class="dict-code">${k}</span>
+      <div class="dict-divider"></div>
+      <span class="dict-meaning">${v}</span>
+      <span class="dict-badge badge-${cat}">${label}</span>
+    </div>`;
+  }).join('');
+}
+
+// ============================================================
+// QRコード（簡易版）
+// ============================================================
+function updateQR() {
+  document.getElementById('my-nickname-display').textContent = myNickname;
+  document.getElementById('my-bellid-display').textContent = myBellID;
+  // QRコードはライブラリなしでは生成できないため、代替表示
+  const canvas = document.getElementById('qr-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f0f0f0';
+  ctx.fillRect(0,0,160,160);
+  ctx.fillStyle = '#333';
+  ctx.font = '11px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('QR CODE', 80, 70);
+  ctx.font = '9px Courier New';
+  ctx.fillText(myBellID, 80, 90);
+  ctx.fillText('（アプリ版でスキャン）', 80, 110);
+}
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function toggleSetting(key, btn) {
+  const isOn = !btn.classList.contains('on');
+  btn.className = 'settings-toggle' + (isOn ? ' on' : '');
+  if (key === 'ringtone') ringtone = isOn;
+  if (key === 'vibration') vibration = isOn;
+}
+function saveSettings() {
+  myNickname = document.getElementById('s-nickname').value.trim();
+  serverURL  = document.getElementById('s-serverurl').value.trim();
+  localStorage.setItem('nickname', myNickname);
+  localStorage.setItem('serverURL', serverURL);
+  localStorage.setItem('ringtone', ringtone);
+  localStorage.setItem('vibration', vibration);
+  updateQR();
+  if (ws) ws.close();
+  alert('保存しました');
+}
+function resetAll() {
+  if (!confirm('全データを削除しますか？')) return;
+  localStorage.clear();
+  location.reload();
+}
+
+// ============================================================
+// タブ切り替え
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (tab === 'dials') { renderContacts(); updateQR(); }
+  if (tab === 'groups') { renderGroups(); renderMemberChecks(); }
+  if (tab === 'log') renderLog();
+  if (tab === 'dict') renderDict();
+}
+
+// 起動
+init();
+</script>
+</body>
+</html>
